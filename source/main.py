@@ -2,6 +2,7 @@ import os
 from tkinter import *
 from tkinter import filedialog, messagebox
 from tkinter import ttk
+from send2trash import send2trash
 
 # Global variables
 folder_path: str = ''
@@ -23,13 +24,12 @@ def choose_folder():
         path_label.config(text='Empty')
 
 def add_file_button_did_tap():
-    file_path = filedialog.askopenfilename(title='Select File')
-    if file_path:
-        last_path = os.path.basename(file_path)
-        for i in range(0,100):
+    file_paths = filedialog.askopenfilenames(title='Select Files')
+    if file_paths:
+        for file_path in file_paths:
+            last_path = os.path.basename(file_path)
             file_names.append(last_path)
         update_file_list()
-        print(f"Added file: {last_path}")
 
 def remove_selected_file():
     selection = file_listbox.curselection()
@@ -37,7 +37,6 @@ def remove_selected_file():
         index = selection[0]
         removed = file_names.pop(index)
         update_file_list()
-        print(f"Removed file: {removed}")
     else:
         messagebox.showinfo("No Selection", "Please select a file to remove.")
 
@@ -46,31 +45,8 @@ def clear_all_files():
         if messagebox.askyesno("Clear All", f"Remove all {len(file_names)} files from the list?"):
             file_names.clear()
             update_file_list()
-            print("Cleared all files")
     else:
         messagebox.showinfo("Empty List", "No files to clear.")
-
-def delete_permanently_button_did_tap():
-    if not folder_path:
-        messagebox.showwarning("No Folder", "Please select a folder first.")
-        return
-    if not file_names:
-        messagebox.showwarning("No Files", "Please add files to the list.")
-        return
-
-    # Confirm with user
-    confirm = messagebox.askyesno(
-        "Confirm Permanent Deletion",
-        f"Are you sure you want to PERMANENTLY DELETE {len(file_names)} file(s) from\n{folder_path}?\n\nThis action cannot be undone!",
-        icon='warning'
-    )
-    if confirm:
-        # Original action (just print for now)
-        print(f"DELETE PERMANENTLY confirmed. Files: {file_names}")
-        messagebox.showinfo("Action Simulated", "Permanent deletion simulated.\n(No actual files were deleted)")
-        # Here you would add real deletion code if needed
-    else:
-        print("User cancelled permanent deletion.")
 
 def move_to_bin_button_did_tap():
     if not folder_path:
@@ -86,11 +62,28 @@ def move_to_bin_button_did_tap():
         icon='question'
     )
     if confirm:
-        print(f"MOVE TO BIN confirmed. Files: {file_names}")
-        messagebox.showinfo("Action Simulated", "Move to Bin simulated.\n(No actual files were moved)")
-        # Here you would add real move-to-bin code if needed
+        delete_files()
+
+
+def delete_files():
+    global folder_path
+    global file_names
+    files_pathes: list[str] = []
+    for root, _, files in os.walk(folder_path):
+        for file in files:
+            if file in file_names:
+                destination = os.path.join(root, file)
+                files_pathes.append(destination)
+                
+    if files_pathes:
+        count = len(files_pathes)
+        for destination in files_pathes:
+            send2trash(destination)
+            
+        messagebox.showinfo("Success", f"Moved {count} file(s) to trash.")
     else:
-        print("User cancelled move to bin.")
+        messagebox.showwarning("Files not found", "No such files found in the folder.")
+
 
 # ---------- GUI construction ----------
 root = Tk()
@@ -154,18 +147,13 @@ clear_all_btn = Button(btn_frame, text="🗑 Clear All", command=clear_all_files
 clear_all_btn.pack(side=LEFT, padx=5)
 
 # Bottom frame
-bottom_frame = Frame(main_frame, relief=GROOVE, bd=2, padx=5, pady=5)
+# Bottom frame
+bottom_frame = Frame(main_frame, bd=2, padx=5, pady=5)
 bottom_frame.grid(row=2, column=0, sticky="ew", padx=5, pady=5)
-bottom_frame.grid_columnconfigure(0, weight=1)
-bottom_frame.grid_columnconfigure(1, weight=1)
-
-delete_btn = Button(bottom_frame, text="💀 Delete Permanently", command=delete_permanently_button_did_tap,
-                    bg="#FF4444", fg="black", font=("Arial", 10, "bold"), padx=10)
-delete_btn.grid(row=0, column=0, padx=10, pady=5, sticky="ew")
 
 move_btn = Button(bottom_frame, text="📂 Move to Bin", command=move_to_bin_button_did_tap,
-                  bg="#4CAF50", fg="black", font=("Arial", 10, "bold"), padx=10)
-move_btn.grid(row=0, column=1, padx=10, pady=5, sticky="ew")
+                  bg="#4CAF50", fg="black", font=("Arial", 10, "bold"))
+move_btn.pack(expand=True, fill='x', padx=20)
 
 if __name__ == '__main__':
     root.mainloop()

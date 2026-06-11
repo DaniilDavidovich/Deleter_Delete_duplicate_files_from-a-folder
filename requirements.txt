@@ -1,1 +1,2 @@
 pyinstaller
+send2trash
